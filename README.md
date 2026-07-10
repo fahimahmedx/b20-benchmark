@@ -8,17 +8,15 @@ It benchmarks `transfer`, `approve`, `transferFrom`, and `mint` under eight fixe
 
 ## Results
 
-All five repetitions within every implementation/scenario group were identical.
+### Figure 1: absolute gas
 
-### Figure 1: Native B20 percentage difference
+![Grouped absolute gas chart](figures/absolute-gas.png)
+
+### Figure 2: Native B20 percentage difference
 
 ![Native B20 percentage difference chart](figures/native-percentage-difference.png)
 
 Negative percentages mean Native B20 used less gas under this methodology.
-
-### Figure 2: absolute gas
-
-![Grouped absolute gas chart](figures/absolute-gas.png)
 
 <!-- BEGIN GENERATED RESULTS -->
 | Scenario | Native B20 | MockB20 | OpenZeppelin ERC-20 |
