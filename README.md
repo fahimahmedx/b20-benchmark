@@ -1,10 +1,58 @@
 # Native B20 gas benchmark
 
-This repository answers one deliberately narrow question:
+This repository answers one question:
 
 > How much execution gas does Native B20 use for common ERC-20 operations compared with Base's official Solidity MockB20 reference implementation and a conventional OpenZeppelin ERC-20?
 
 It benchmarks `transfer`, `approve`, `transferFrom`, and `mint` under eight fixed storage-state scenarios. It does not benchmark deployment, token creation, optional B20 features, L1 data fees, or live-network costs.
+
+## Results
+
+All five repetitions within every implementation/scenario group were identical.
+
+<!-- BEGIN GENERATED RESULTS -->
+| Scenario | Native B20 | MockB20 | OpenZeppelin ERC-20 |
+|---|---:|---:|---:|
+| transfer: zero-balance recipient | 33,877 | 37,312 | 30,570 |
+| transfer: existing-balance recipient | 16,777 | 20,212 | 13,470 |
+| approve: zero → nonzero | 24,577 | 25,307 | 25,345 |
+| approve: nonzero → nonzero | 7,477 | 8,207 | 8,245 |
+| transferFrom: finite allowance | 38,939 | 44,296 | 36,223 |
+| transferFrom: max allowance | 36,039 | 41,150 | 32,986 |
+| mint: zero-balance recipient | 37,925 | 40,342 | 32,520 |
+| mint: existing-balance recipient | 20,825 | 23,242 | 15,420 |
+
+| Scenario | Native vs MockB20 | Native vs OpenZeppelin |
+|---|---:|---:|
+| transfer: zero-balance recipient | -9.2% | +10.8% |
+| transfer: existing-balance recipient | -17.0% | +24.6% |
+| approve: zero → nonzero | -2.9% | -3.0% |
+| approve: nonzero → nonzero | -8.9% | -9.3% |
+| transferFrom: finite allowance | -12.1% | +7.5% |
+| transferFrom: max allowance | -12.4% | +9.3% |
+| mint: zero-balance recipient | -6.0% | +16.6% |
+| mint: existing-balance recipient | -10.4% | +35.1% |
+<!-- END GENERATED RESULTS -->
+
+Raw and summarized data are available as [`raw.csv`](results/raw.csv), [`raw.json`](results/raw.json), and [`summary.csv`](results/summary.csv).
+
+### Figure 1: absolute gas
+
+![Grouped absolute gas chart](figures/absolute-gas.png)
+
+### Figure 2: Native B20 percentage difference
+
+![Native B20 percentage difference chart](figures/native-percentage-difference.png)
+
+Negative percentages mean Native B20 used less gas under this methodology.
+
+## Interpretation
+
+Native B20 used less gas than MockB20 in every tested scenario, with gas reductions from 2.9% to 17.0%. That comparison is against Base's readable conformance implementation, not an optimized production Solidity token.
+
+Against OpenZeppelin ERC-20, Native B20 used 3.0% less gas for zero-to-nonzero approval and 9.3% less for nonzero-to-nonzero approval. It used more gas for both transfer states, both transferFrom states, and both mint states—between 7.5% and 35.1% more in those six scenarios. B20 performs built-in checks and accounting that the smaller OpenZeppelin baseline does not provide, so this is not a feature-equivalent comparison.
+
+Zero-to-nonzero balance and allowance writes cost substantially more than nonzero-to-nonzero writes across all implementations, as expected from EVM storage pricing. The percentages describe gas-accounting differences only; they are not claims about proportional CPU-time improvements.
 
 ## B20 and the three implementations
 
@@ -25,6 +73,21 @@ contract BenchmarkERC20 is ERC20, Ownable {
     }
 }
 ```
+
+## Benchmark limitations and threats to validity
+
+- MockB20 is not gas-optimized; it is a Solidity reference/conformance implementation.
+- OpenZeppelin ERC-20 has fewer built-in features and is not feature-equivalent to B20.
+- B20 token creation, Solidity deployment, and MockB20Factory creation gas are excluded.
+- Base L1 data fees and transaction calldata fees outside the measured call are excluded.
+- Gas is protocol-defined execution pricing, not a direct CPU benchmark; lower gas does not imply proportionally lower CPU time.
+- Native B20 and MockB20 may run through different Foundry binaries in other workflows. This repository avoids that variable by using the same Base Forge binary with Base dispatch toggled; substituting stock Forge reintroduces it, and the included canary demonstrates a difference for this harness.
+- Results apply only to the pinned software versions and compiler configuration.
+- Storage values and warm/cold access state materially affect gas. This benchmark covers one explicit warm-account/cold-storage condition, not a matrix.
+- The retained measurement wrapper overhead slightly influences absolute values and percentage ratios, although it is identical for corresponding function signatures.
+- Local in-process Base Forge execution is not a live Base transaction and excludes networking, sequencing, and fee-market effects.
+- The benchmark does not prove that B20 is cheaper for every operation, state transition, variant, or configuration.
+- Optional B20 functionality—including permit, pause, custom policies, memos, batch operations, and multiplier changes—is intentionally out of scope.
 
 ## Preliminary tooling investigation
 
@@ -190,70 +253,7 @@ make all
 
 If native execution fails, the runner still attempts MockB20 and OpenZeppelin collection, leaves Native B20 observations absent, fails strict validation, and does not generate comparative figures or claims.
 
-## Results
-
-All five repetitions within every implementation/scenario group were identical.
-
-<!-- BEGIN GENERATED RESULTS -->
-| Scenario | Native B20 | MockB20 | OpenZeppelin ERC-20 |
-|---|---:|---:|---:|
-| transfer: zero-balance recipient | 33,877 | 37,312 | 30,570 |
-| transfer: existing-balance recipient | 16,777 | 20,212 | 13,470 |
-| approve: zero → nonzero | 24,577 | 25,307 | 25,345 |
-| approve: nonzero → nonzero | 7,477 | 8,207 | 8,245 |
-| transferFrom: finite allowance | 38,939 | 44,296 | 36,223 |
-| transferFrom: max allowance | 36,039 | 41,150 | 32,986 |
-| mint: zero-balance recipient | 37,925 | 40,342 | 32,520 |
-| mint: existing-balance recipient | 20,825 | 23,242 | 15,420 |
-
-| Scenario | Native vs MockB20 | Native vs OpenZeppelin |
-|---|---:|---:|
-| transfer: zero-balance recipient | -9.2% | +10.8% |
-| transfer: existing-balance recipient | -17.0% | +24.6% |
-| approve: zero → nonzero | -2.9% | -3.0% |
-| approve: nonzero → nonzero | -8.9% | -9.3% |
-| transferFrom: finite allowance | -12.1% | +7.5% |
-| transferFrom: max allowance | -12.4% | +9.3% |
-| mint: zero-balance recipient | -6.0% | +16.6% |
-| mint: existing-balance recipient | -10.4% | +35.1% |
-<!-- END GENERATED RESULTS -->
-
-Raw and summarized data are available as [`raw.csv`](results/raw.csv), [`raw.json`](results/raw.json), and [`summary.csv`](results/summary.csv).
-
-### Figure 1: absolute gas
-
-![Grouped absolute gas chart](figures/absolute-gas.png)
-
-### Figure 2: Native B20 percentage difference
-
-![Native B20 percentage difference chart](figures/native-percentage-difference.png)
-
-Negative percentages mean Native B20 used less gas under this methodology.
-
-## Interpretation
-
-Native B20 used less gas than MockB20 in every tested scenario, with gas reductions from 2.9% to 17.0%. That comparison is against Base's readable conformance implementation, not an optimized production Solidity token.
-
-Against OpenZeppelin ERC-20, Native B20 used 3.0% less gas for zero-to-nonzero approval and 9.3% less for nonzero-to-nonzero approval. It used more gas for both transfer states, both transferFrom states, and both mint states—between 7.5% and 35.1% more in those six scenarios. B20 performs built-in checks and accounting that the smaller OpenZeppelin baseline does not provide, so this is not a feature-equivalent comparison.
-
-Zero-to-nonzero balance and allowance writes cost substantially more than nonzero-to-nonzero writes across all implementations, as expected from EVM storage pricing. The percentages describe gas-accounting differences only; they are not claims about proportional CPU-time improvements.
-
-## Limitations and threats to validity
-
-- MockB20 is not gas-optimized; it is a Solidity reference/conformance implementation.
-- OpenZeppelin ERC-20 has fewer built-in features and is not feature-equivalent to B20.
-- B20 token creation, Solidity deployment, and MockB20Factory creation gas are excluded.
-- Base L1 data fees and transaction calldata fees outside the measured call are excluded.
-- Gas is protocol-defined execution pricing, not a direct CPU benchmark; lower gas does not imply proportionally lower CPU time.
-- Native B20 and MockB20 may run through different Foundry binaries in other workflows. This repository avoids that variable by using the same Base Forge binary with Base dispatch toggled; substituting stock Forge reintroduces it, and the included canary demonstrates a difference for this harness.
-- Results apply only to the pinned software versions and compiler configuration.
-- Storage values and warm/cold access state materially affect gas. This benchmark covers one explicit warm-account/cold-storage condition, not a matrix.
-- The retained measurement wrapper overhead slightly influences absolute values and percentage ratios, although it is identical for corresponding function signatures.
-- Local in-process Base Forge execution is not a live Base transaction and excludes networking, sequencing, and fee-market effects.
-- The benchmark does not prove that B20 is cheaper for every operation, state transition, variant, or configuration.
-- Optional B20 functionality—including permit, pause, custom policies, memos, batch operations, and multiplier changes—is intentionally out of scope.
-
-## Authoritative references
+## References
 
 - [Launch a B20 Token](https://docs.base.org/get-started/launch-b20-token)
 - [B20 Native Token Standard / Beryl specification](https://docs.base.org/base-chain/specs/upgrades/beryl/b20)
