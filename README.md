@@ -2,44 +2,46 @@
 
 This repository answers one question:
 
-> How much execution gas does Native B20 use for common ERC-20 operations compared with Base's official Solidity MockB20 reference implementation and a conventional OpenZeppelin ERC-20?
+> How much execution gas does Native B20 use for common ERC-20 operations compared with Base's official Solidity MockB20 reference implementation?
 
-It benchmarks `transfer`, `approve`, `transferFrom`, and `mint` under eight fixed storage-state scenarios. It does not benchmark deployment, token creation, optional B20 features, L1 data fees, or live-network costs.
+It benchmarks `transfer`, `approve`, `transferFrom`, and `mint` under eight fixed storage-state scenarios. It also reports OpenZeppelin ERC-20 measurements as a familiar conventional reference. It does not benchmark deployment, token creation, optional B20 features, L1 data fees, or live-network costs.
 
 ## Results
 
-### Figure 1: absolute gas
+The main results compare Native B20 with Base's Solidity MockB20 reference implementation. These are the relevant graphs for comparing the two B20 implementations.
 
-![Grouped absolute gas chart](figures/absolute-gas.png)
+### Figure 1: Native B20 and MockB20 absolute gas
 
-### Figure 2: Native B20 percentage difference
+![Native B20 and Solidity MockB20 absolute gas chart](figures/absolute-gas-no-openzeppelin.png)
 
-![Native B20 percentage difference chart](figures/native-percentage-difference.png)
+### Figure 2: Native B20 versus MockB20 percentage difference
 
-Negative percentages mean Native B20 used less gas under this methodology.
+![Native B20 versus Solidity MockB20 percentage difference chart](figures/native-percentage-difference-no-openzeppelin.png)
+
+Negative percentages are better, and mean Native B20 used less gas under this methodology.
 
 <!-- BEGIN GENERATED RESULTS -->
-| Scenario | Native B20 | MockB20 | OpenZeppelin ERC-20 |
-|---|---:|---:|---:|
-| transfer: zero-balance recipient | 33,877 | 37,312 | 30,570 |
-| transfer: existing-balance recipient | 16,777 | 20,212 | 13,470 |
-| approve: zero → nonzero | 24,577 | 25,307 | 25,345 |
-| approve: nonzero → nonzero | 7,477 | 8,207 | 8,245 |
-| transferFrom: finite allowance | 38,939 | 44,296 | 36,223 |
-| transferFrom: max allowance | 36,039 | 41,150 | 32,986 |
-| mint: zero-balance recipient | 37,925 | 40,342 | 32,520 |
-| mint: existing-balance recipient | 20,825 | 23,242 | 15,420 |
-
-| Scenario | Native vs MockB20 | Native vs OpenZeppelin |
+| Scenario | Native B20 | MockB20 (Solidity) |
 |---|---:|---:|
-| transfer: zero-balance recipient | -9.2% | +10.8% |
-| transfer: existing-balance recipient | -17.0% | +24.6% |
-| approve: zero → nonzero | -2.9% | -3.0% |
-| approve: nonzero → nonzero | -8.9% | -9.3% |
-| transferFrom: finite allowance | -12.1% | +7.5% |
-| transferFrom: max allowance | -12.4% | +9.3% |
-| mint: zero-balance recipient | -6.0% | +16.6% |
-| mint: existing-balance recipient | -10.4% | +35.1% |
+| transfer: zero-balance recipient | 33,877 | 37,312 |
+| transfer: existing-balance recipient | 16,777 | 20,212 |
+| approve: zero → nonzero | 24,577 | 25,307 |
+| approve: nonzero → nonzero | 7,477 | 8,207 |
+| transferFrom: finite allowance | 38,939 | 44,296 |
+| transferFrom: max allowance | 36,039 | 41,150 |
+| mint: zero-balance recipient | 37,925 | 40,342 |
+| mint: existing-balance recipient | 20,825 | 23,242 |
+
+| Scenario | Native vs MockB20 (Solidity) |
+|---|---:|
+| transfer: zero-balance recipient | -9.2% |
+| transfer: existing-balance recipient | -17.0% |
+| approve: zero → nonzero | -2.9% |
+| approve: nonzero → nonzero | -8.9% |
+| transferFrom: finite allowance | -12.1% |
+| transferFrom: max allowance | -12.4% |
+| mint: zero-balance recipient | -6.0% |
+| mint: existing-balance recipient | -10.4% |
 <!-- END GENERATED RESULTS -->
 
 Raw and summarized data are available as [`raw.csv`](results/raw.csv), [`raw.json`](results/raw.json), and [`summary.csv`](results/summary.csv).
@@ -48,9 +50,7 @@ Raw and summarized data are available as [`raw.csv`](results/raw.csv), [`raw.jso
 
 Native B20 used less gas than MockB20 in every tested scenario, with gas reductions from 2.9% to 17.0%. That comparison is against Base's readable conformance implementation, not an optimized production Solidity token.
 
-Against OpenZeppelin ERC-20, Native B20 used 3.0% less gas for zero-to-nonzero approval and 9.3% less for nonzero-to-nonzero approval. It used more gas for both transfer states, both transferFrom states, and both mint states—between 7.5% and 35.1% more in those six scenarios. B20 performs built-in checks and accounting that the smaller OpenZeppelin baseline does not provide, so this is not a feature-equivalent comparison.
-
-Zero-to-nonzero balance and allowance writes cost substantially more than nonzero-to-nonzero writes across all implementations, as expected from EVM storage pricing. The percentages describe gas-accounting differences only; they are not claims about proportional CPU-time improvements.
+Zero-to-nonzero balance and allowance writes cost substantially more than nonzero-to-nonzero writes across both B20 implementations, as expected from EVM storage pricing. The percentages describe gas-accounting differences only; they are not claims about proportional CPU-time improvements.
 
 ## B20 and the three implementations
 
@@ -58,7 +58,7 @@ Zero-to-nonzero balance and allowance writes cost substantially more than nonzer
 
 - **Native B20:** B20 Asset functionality executed through Base's Rust precompiles. The benchmark uses Base Forge's in-process Base EVM, not a Solidity substitute.
 - **MockB20:** Base's official Solidity reference or conformance implementation from [`base-std`](https://github.com/base/base-std/tree/4658f1b7b54ccc61b036adc32830594018ea507e). Its source explicitly describes it as “Solidity-as-if-Rust”: readability and correspondence with the Rust implementation take priority over Solidity gas optimization. It is not an optimized production Solidity token.
-- **OpenZeppelin ERC-20:** OpenZeppelin Contracts v5.6.1 `ERC20`, wrapped with `Ownable` and a single `onlyOwner` mint method. It is a conventional baseline with fewer built-in features and is not fully feature-equivalent to B20.
+- **OpenZeppelin ERC-20:** OpenZeppelin Contracts v5.6.1 `ERC20`, wrapped with `Ownable` and a single `onlyOwner` mint method. It has fewer built-in features and is **not feature-equivalent to B20**. It appears only as a conventional reference, not as a like-for-like competitor.
 
 The wrapper is intentionally small:
 
@@ -75,7 +75,7 @@ contract BenchmarkERC20 is ERC20, Ownable {
 ## Benchmark limitations and threats to validity
 
 - MockB20 is not gas-optimized; it is a Solidity reference/conformance implementation.
-- OpenZeppelin ERC-20 has fewer built-in features and is not feature-equivalent to B20.
+- OpenZeppelin ERC-20 has fewer built-in features and is not feature-equivalent to B20; comparisons against it are contextual references, not like-for-like efficiency claims.
 - B20 token creation, Solidity deployment, and MockB20Factory creation gas are excluded.
 - Base L1 data fees and transaction calldata fees outside the measured call are excluded.
 - Gas is protocol-defined execution pricing, not a direct CPU benchmark; lower gas does not imply proportionally lower CPU time.

@@ -35,7 +35,7 @@ SCENARIOS = [
 ]
 IMPLEMENTATIONS = [
     ("native_b20", "Native B20", "#0052FF"),
-    ("mock_b20", "MockB20", "#8B5CF6"),
+    ("mock_b20", "MockB20 (Solidity)", "#8B5CF6"),
     ("openzeppelin", "OpenZeppelin ERC-20", "#14B8A6"),
 ]
 
@@ -43,6 +43,10 @@ BACKGROUND = "#F7F9FC"
 TEXT = "#172033"
 MUTED_TEXT = "#526078"
 GRID = "#DDE4EE"
+CREDIT = "@0xOptimus"
+OPENZEPPELIN_DISCLAIMER = (
+    "Not like-for-like:\nOpenZeppelin ERC-20 is not feature-equivalent to B20."
+)
 
 
 def load() -> dict[tuple[str, str, str], int]:
@@ -54,13 +58,43 @@ def load() -> dict[tuple[str, str, str], int]:
 
 
 def save(fig: plt.Figure, stem: str) -> None:
+    fig.text(
+        0.99,
+        0.01,
+        CREDIT,
+        ha="right",
+        va="bottom",
+        fontsize=14,
+        fontweight="bold",
+        color=MUTED_TEXT,
+    )
     metadata = {"Creator": "b20-gas-benchmark", "Date": None}
     fig.savefig(FIGURES / f"{stem}.png", dpi=200, bbox_inches="tight", metadata=metadata)
     fig.savefig(FIGURES / f"{stem}.svg", bbox_inches="tight", metadata=metadata)
     plt.close(fig)
 
 
-def absolute_figure(data: dict[tuple[str, str, str], int]) -> None:
+def add_openzeppelin_disclaimer(ax: plt.Axes) -> None:
+    ax.text(
+        0.01,
+        0.985,
+        OPENZEPPELIN_DISCLAIMER,
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontsize=9.5,
+        fontweight="bold",
+        color=MUTED_TEXT,
+        bbox={"boxstyle": "round,pad=0.45", "facecolor": "white", "edgecolor": GRID},
+        zorder=5,
+    )
+
+
+def absolute_figure(
+    data: dict[tuple[str, str, str], int],
+    implementations: list[tuple[str, str, str]] = IMPLEMENTATIONS,
+    stem: str = "absolute-gas",
+) -> None:
     labels = [label for _, _, label in SCENARIOS]
     x = np.arange(len(labels))
     width = 0.25
@@ -70,12 +104,12 @@ def absolute_figure(data: dict[tuple[str, str, str], int]) -> None:
         identifier: [
             data[(identifier, operation, scenario)] for operation, scenario, _ in SCENARIOS
         ]
-        for identifier, _, _ in IMPLEMENTATIONS
+        for identifier, _, _ in implementations
     }
-    for offset, (identifier, display, color) in enumerate(IMPLEMENTATIONS):
+    for offset, (identifier, display, color) in enumerate(implementations):
         values = series_values[identifier]
         bars = ax.bar(
-            x + (offset - 1) * width,
+            x + (offset - (len(implementations) - 1) / 2) * width,
             values,
             width,
             label=display,
@@ -85,7 +119,7 @@ def absolute_figure(data: dict[tuple[str, str, str], int]) -> None:
             zorder=3,
         )
         for index, (bar, value) in enumerate(zip(bars, values, strict=True)):
-            group = [series_values[item[0]][index] for item in IMPLEMENTATIONS]
+            group = [series_values[item[0]][index] for item in implementations]
             padding = 5 + offset * 10 if max(group) - min(group) < 2_500 else 5
             ax.annotate(
                 f"{value:,}",
@@ -116,18 +150,24 @@ def absolute_figure(data: dict[tuple[str, str, str], int]) -> None:
         facecolor="white",
         edgecolor=GRID,
         framealpha=1,
-        ncols=3,
+        ncols=len(implementations),
         loc="upper center",
         bbox_to_anchor=(0.5, 1.02),
         borderpad=0.7,
         columnspacing=1.8,
     )
+    if any(identifier == "openzeppelin" for identifier, _, _ in implementations):
+        add_openzeppelin_disclaimer(ax)
     ax.margins(y=0.2)
     fig.tight_layout()
-    save(fig, "absolute-gas")
+    save(fig, stem)
 
 
-def percentage_figure(data: dict[tuple[str, str, str], int]) -> None:
+def percentage_figure(
+    data: dict[tuple[str, str, str], int],
+    include_openzeppelin: bool = True,
+    stem: str = "native-percentage-difference",
+) -> None:
     labels = [label for _, _, label in SCENARIOS]
     versus_mock: list[float] = []
     versus_oz: list[float] = []
@@ -142,28 +182,32 @@ def percentage_figure(data: dict[tuple[str, str, str], int]) -> None:
     width = 0.36
     fig, ax = plt.subplots(figsize=(16, 8), facecolor=BACKGROUND)
     ax.set_facecolor(BACKGROUND)
+    mock_x = x - width / 2 if include_openzeppelin else x
     mock_bars = ax.bar(
-        x - width / 2,
+        mock_x,
         versus_mock,
         width,
-        label="vs MockB20",
+        label="vs MockB20 (Solidity)",
         color="#8B5CF6",
         edgecolor=BACKGROUND,
         linewidth=1.2,
         zorder=3,
     )
-    oz_bars = ax.bar(
-        x + width / 2,
-        versus_oz,
-        width,
-        label="vs OpenZeppelin ERC-20",
-        color="#14B8A6",
-        edgecolor=BACKGROUND,
-        linewidth=1.2,
-        zorder=3,
-    )
+    if include_openzeppelin:
+        oz_bars = ax.bar(
+            x + width / 2,
+            versus_oz,
+            width,
+            label="vs OpenZeppelin ERC-20",
+            color="#14B8A6",
+            edgecolor=BACKGROUND,
+            linewidth=1.2,
+            zorder=3,
+        )
+        ax.bar_label(
+            oz_bars, fmt="%.1f%%", padding=4, fontsize=9, color=TEXT, fontweight="bold"
+        )
     ax.bar_label(mock_bars, fmt="%.1f%%", padding=4, fontsize=9, color=TEXT, fontweight="bold")
-    ax.bar_label(oz_bars, fmt="%.1f%%", padding=4, fontsize=9, color=TEXT, fontweight="bold")
     ax.axhline(0, color=TEXT, linewidth=1.15, zorder=2)
     ax.set_title(
         "Native B20 gas percentage difference",
@@ -182,15 +226,17 @@ def percentage_figure(data: dict[tuple[str, str, str], int]) -> None:
         facecolor="white",
         edgecolor=GRID,
         framealpha=1,
-        ncols=2,
+        ncols=2 if include_openzeppelin else 1,
         loc="upper center",
         bbox_to_anchor=(0.5, 1.02),
         borderpad=0.7,
         columnspacing=1.8,
     )
+    if include_openzeppelin:
+        add_openzeppelin_disclaimer(ax)
     ax.margins(y=0.2)
     fig.tight_layout()
-    save(fig, "native-percentage-difference")
+    save(fig, stem)
 
 
 def main() -> None:
@@ -211,7 +257,17 @@ def main() -> None:
     data = load()
     absolute_figure(data)
     percentage_figure(data)
-    print("wrote absolute and percentage-difference figures as PNG and SVG")
+    absolute_figure(
+        data,
+        implementations=IMPLEMENTATIONS[:2],
+        stem="absolute-gas-no-openzeppelin",
+    )
+    percentage_figure(
+        data,
+        include_openzeppelin=False,
+        stem="native-percentage-difference-no-openzeppelin",
+    )
+    print("wrote full and no-OpenZeppelin figures as PNG and SVG")
 
 
 if __name__ == "__main__":

@@ -42,4 +42,6 @@ all: benchmark plots
 clean-results:
 	rm -f results/raw.csv results/raw.json results/summary.csv
 	rm -f figures/absolute-gas.png figures/absolute-gas.svg
+	rm -f figures/absolute-gas-no-openzeppelin.png figures/absolute-gas-no-openzeppelin.svg
 	rm -f figures/native-percentage-difference.png figures/native-percentage-difference.svg
+	rm -f figures/native-percentage-difference-no-openzeppelin.png figures/native-percentage-difference-no-openzeppelin.svg

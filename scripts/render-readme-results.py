@@ -31,30 +31,25 @@ def main() -> None:
 
     lines = [
         START,
-        "| Scenario | Native B20 | MockB20 | OpenZeppelin ERC-20 |",
-        "|---|---:|---:|---:|",
+        "| Scenario | Native B20 | MockB20 (Solidity) |",
+        "|---|---:|---:|",
     ]
     for operation, scenario, label in SCENARIOS:
         lines.append(
             f"| {label} | {values[('native_b20', operation, scenario)]:,} "
-            f"| {values[('mock_b20', operation, scenario)]:,} "
-            f"| {values[('openzeppelin', operation, scenario)]:,} |"
+            f"| {values[('mock_b20', operation, scenario)]:,} |"
         )
     lines.extend(
         [
             "",
-            "| Scenario | Native vs MockB20 | Native vs OpenZeppelin |",
-            "|---|---:|---:|",
+            "| Scenario | Native vs MockB20 (Solidity) |",
+            "|---|---:|",
         ]
     )
     for operation, scenario, label in SCENARIOS:
         native = values[("native_b20", operation, scenario)]
         mock = values[("mock_b20", operation, scenario)]
-        oz = values[("openzeppelin", operation, scenario)]
-        lines.append(
-            f"| {label} | {(native - mock) / mock * 100:+.1f}% "
-            f"| {(native - oz) / oz * 100:+.1f}% |"
-        )
+        lines.append(f"| {label} | {(native - mock) / mock * 100:+.1f}% |")
     lines.append(END)
 
     text = README.read_text()
