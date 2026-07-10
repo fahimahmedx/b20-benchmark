@@ -69,8 +69,19 @@ def save(fig: plt.Figure, stem: str) -> None:
         color=MUTED_TEXT,
     )
     metadata = {"Creator": "b20-gas-benchmark", "Date": None}
-    fig.savefig(FIGURES / f"{stem}.png", dpi=200, bbox_inches="tight", metadata=metadata)
-    fig.savefig(FIGURES / f"{stem}.svg", bbox_inches="tight", metadata=metadata)
+    fig.savefig(
+        FIGURES / f"{stem}.png",
+        dpi=200,
+        bbox_inches="tight",
+        pad_inches=0.18,
+        metadata=metadata,
+    )
+    fig.savefig(
+        FIGURES / f"{stem}.svg",
+        bbox_inches="tight",
+        pad_inches=0.18,
+        metadata=metadata,
+    )
     plt.close(fig)
 
 
